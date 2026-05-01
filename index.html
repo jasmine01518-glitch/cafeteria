@@ -247,23 +247,35 @@
 </div>
 
 <script>
-  // ── 테스트용 메뉴 키 (null로 바꾸면 실제 오늘 날짜 MMDD 기준으로 작동) ──
-  const TEST_MENU_KEY = '0430';
+  // ── 테스트용 고정값 (null로 바꾸면 실제 날짜/시간으로 동작) ──
+  const FORCE_DATE_KEY = '0430';   // 메뉴 키 및 날짜 표시
+  const FORCE_TIME     = '12:30';  // 타이머 기준 시간 (HH:MM)
 
-  // ── Menu ───────────────────────────────────────────
+  // ── 공통 유틸 ───────────────────────────────────────
   function pad(n) { return String(n).padStart(2, '0'); }
 
   function nowKST() {
     return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
   }
 
-  // 오늘의 메뉴 키: TEST_MENU_KEY가 있으면 사용, 없으면 실제 KST 날짜 MMDD
+  // 메뉴 키: FORCE_DATE_KEY가 있으면 사용, 없으면 실제 KST 날짜 MMDD
   function getMenuKey() {
-    if (TEST_MENU_KEY) return TEST_MENU_KEY;
+    if (FORCE_DATE_KEY) return FORCE_DATE_KEY;
     const now = nowKST();
     return `${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
   }
 
+  // 현재 시각(초): FORCE_TIME이 있으면 고정, 없으면 실제 KST 시각
+  function getCurrentSec() {
+    if (FORCE_TIME) {
+      const [h, m] = FORCE_TIME.split(':').map(Number);
+      return h * 3600 + m * 60;
+    }
+    const now = nowKST();
+    return now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  }
+
+  // ── Menu ───────────────────────────────────────────
   function renderMenu(key, items) {
     document.getElementById('menuDate').textContent = key;
     const list = document.getElementById('menuList');
@@ -275,19 +287,27 @@
   }
 
   function renderMenuError() {
-    document.getElementById('menuDate').textContent = '';
+    // fetch 또는 JSON 파싱 실패 시에만 호출
+    document.getElementById('menuDate').textContent = getMenuKey();
     document.getElementById('menuList').innerHTML =
       '<li class="no-menu">메뉴를 불러올 수 없습니다</li>';
   }
 
   async function loadMenu() {
+    const key = getMenuKey();
     try {
       const res = await fetch('./menu.json');
-      if (!res.ok) throw new Error('fetch failed');
+      if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
       const data = await res.json();
-      const key = getMenuKey();
+
+      // ── 디버깅용 ──
+      console.log('loaded menu data:', data);
+      console.log('FORCE_DATE_KEY:', FORCE_DATE_KEY);
+      console.log('data.menus[key]:', data.menus?.[key]);
+
       renderMenu(key, data.menus?.[key]);
-    } catch {
+    } catch (e) {
+      console.error('menu load error:', e);
       renderMenuError();
     }
   }
@@ -304,8 +324,7 @@
   }
 
   function updateTimer() {
-    const now = nowKST();
-    const cur = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    const cur = getCurrentSec();
 
     const statusEl  = document.getElementById('timerStatus');
     const displayEl = document.getElementById('timerDisplay');
@@ -345,7 +364,8 @@
 
   loadMenu();
   updateTimer();
-  setInterval(updateTimer, 1000);
+  // FORCE_TIME이 고정값이면 setInterval 불필요하지만 실제 시간 모드 대비 유지
+  if (!FORCE_TIME) setInterval(updateTimer, 1000);
 </script>
 </body>
 </html>
