@@ -196,42 +196,55 @@
 </div>
 
 <script>
-  // ────────────────────────────────────────────────────
-  // 주간 메뉴 데이터 (매주 월요일에 업데이트하세요)
-  // key: 1=월 2=화 3=수 4=목 5=금
-  // ────────────────────────────────────────────────────
-  const weeklyMenu = {
-    1: ['현미밥', '된장찌개', '돼지불고기', '시금치나물', '배추김치', '요구르트'],
-    2: ['잡곡밥', '부대찌개', '닭갈비', '콩나물무침', '깍두기', '사과'],
-    3: ['흑미밥', '미역국', '생선구이', '감자조림', '배추김치', '오렌지'],
-    4: ['현미밥', '순두부찌개', '제육볶음', '브로콜리무침', '열무김치', '바나나'],
-    5: ['잡곡밥', '갈비탕', '탕수육', '시금치나물', '배추김치', '귤'],
-  };
+  const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const DAY_KO   = ['일', '월', '화', '수', '목', '금', '토'];
 
-  const DAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
+  function pad(n) { return String(n).padStart(2, '0'); }
 
-  function renderMenu() {
-    const now = new Date();
+  // KST 기준 현재 시각 반환
+  function nowKST() {
+    return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  }
+
+  // ── Menu ───────────────────────────────────────────
+  function renderMenu(items) {
+    const now = nowKST();
     const dow = now.getDay();
     const dateStr =
       `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())} ${DAY_KO[dow]}`;
     document.getElementById('menuDate').textContent = dateStr;
 
     const list = document.getElementById('menuList');
-    const items = weeklyMenu[dow];
-    if (!items) {
-      list.outerHTML = '<p class="no-menu">오늘은 운영하지 않습니다</p>';
+    if (!items || items.length === 0) {
+      list.innerHTML = '<li class="no-menu">오늘 점심 메뉴 없음</li>';
     } else {
       list.innerHTML = items.map(i => `<li>${i}</li>`).join('');
     }
   }
 
-  // ── Timer ──────────────────────────────────────────
-  const OPEN  = 11 * 3600 + 50 * 60;   // 11:50 in seconds
-  const CLOSE = 13 * 3600 + 30 * 60;   // 13:30 in seconds
-  const SPAN  = CLOSE - OPEN;
+  function renderMenuError() {
+    document.getElementById('menuDate').textContent = '';
+    document.getElementById('menuList').innerHTML =
+      '<li class="no-menu">메뉴를 불러올 수 없습니다</li>';
+  }
 
-  function pad(n) { return String(n).padStart(2, '0'); }
+  async function loadMenu() {
+    try {
+      const res = await fetch('./menu.json');
+      if (!res.ok) throw new Error('fetch failed');
+      const data = await res.json();
+      const dow = nowKST().getDay();
+      const key = DAY_KEYS[dow];
+      renderMenu(data.menus?.[key]);
+    } catch {
+      renderMenuError();
+    }
+  }
+
+  // ── Timer ──────────────────────────────────────────
+  const OPEN  = 11 * 3600 + 50 * 60;
+  const CLOSE = 13 * 3600 + 30 * 60;
+  const SPAN  = CLOSE - OPEN;
 
   function fmtMMSS(sec) {
     const m = Math.floor(sec / 60);
@@ -240,7 +253,7 @@
   }
 
   function updateTimer() {
-    const now = new Date();
+    const now = nowKST();
     const cur = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
     const statusEl  = document.getElementById('timerStatus');
@@ -251,7 +264,6 @@
     displayEl.classList.remove('closed');
 
     if (cur < OPEN) {
-      // 점심 시간 전
       const diff = OPEN - cur;
       statusEl.textContent  = '점심까지';
       displayEl.textContent = fmtMMSS(diff);
@@ -259,7 +271,6 @@
       barEl.style.width     = '0%';
 
     } else if (cur <= CLOSE) {
-      // 운영 중
       const diff = CLOSE - cur;
       const pct  = ((SPAN - diff) / SPAN) * 100;
       statusEl.textContent  = '마감까지';
@@ -268,7 +279,6 @@
       barEl.style.width     = pct + '%';
 
     } else {
-      // 운영 종료
       displayEl.classList.add('closed');
       statusEl.textContent  = '';
       displayEl.textContent = '오늘 운영 종료';
@@ -277,7 +287,7 @@
     }
   }
 
-  renderMenu();
+  loadMenu();
   updateTimer();
   setInterval(updateTimer, 1000);
 </script>
