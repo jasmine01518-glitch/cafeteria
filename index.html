@@ -247,34 +247,25 @@
 </div>
 
 <script>
-  // ── 테스트용 날짜 고정 (null로 바꾸면 실제 오늘 날짜 기준으로 작동) ──
-  const TEST_DATE = '2026-04-30';
+  // ── 테스트용 메뉴 키 (null로 바꾸면 실제 오늘 날짜 MMDD 기준으로 작동) ──
+  const TEST_MENU_KEY = '0430';
 
   // ── Menu ───────────────────────────────────────────
-  const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const DAY_KO   = ['일', '월', '화', '수', '목', '금', '토'];
-
   function pad(n) { return String(n).padStart(2, '0'); }
 
   function nowKST() {
     return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
   }
 
-  // 메뉴 표시용 날짜: TEST_DATE가 있으면 고정, 없으면 실제 KST 날짜
-  function getDisplayDate() {
-    if (TEST_DATE) {
-      const [y, m, d] = TEST_DATE.split('-').map(Number);
-      return new Date(y, m - 1, d);
-    }
-    return nowKST();
+  // 오늘의 메뉴 키: TEST_MENU_KEY가 있으면 사용, 없으면 실제 KST 날짜 MMDD
+  function getMenuKey() {
+    if (TEST_MENU_KEY) return TEST_MENU_KEY;
+    const now = nowKST();
+    return `${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
   }
 
-  function renderMenu(items) {
-    const now = getDisplayDate();
-    const dow = now.getDay();
-    const dateStr = `${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
-    document.getElementById('menuDate').textContent = dateStr;
-
+  function renderMenu(key, items) {
+    document.getElementById('menuDate').textContent = key;
     const list = document.getElementById('menuList');
     if (!items || items.length === 0) {
       list.innerHTML = '<li class="no-menu">오늘 점심 메뉴 없음</li>';
@@ -294,9 +285,8 @@
       const res = await fetch('./menu.json');
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
-      const dow = getDisplayDate().getDay();
-      const key = DAY_KEYS[dow];
-      renderMenu(data.menus?.[key]);
+      const key = getMenuKey();
+      renderMenu(key, data.menus?.[key]);
     } catch {
       renderMenuError();
     }
