@@ -38,6 +38,20 @@
       opacity: 0;
       transition: opacity 0.4s ease;
       pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ── Timer 남은 시간 오버레이 ── */
+    .timer-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.3));
+      pointer-events: none;
+      z-index: 2;
+      transition: width 1s linear;
     }
 
     /* ── Lunch 탭 ── */
@@ -96,7 +110,7 @@
       color: #CBF1FF;
       user-select: none;
       pointer-events: none;
-      z-index: 1;
+      z-index: 3;
       transition: opacity 0.25s ease;
     }
 
@@ -107,15 +121,14 @@
     /* ── 확장 시 표시되는 콘텐츠 ── */
     .tab-content {
       position: absolute;
-      top: 2.5rem;
+      bottom: 2.5rem;
       left: 2.5rem;
       right: 2.5rem;
-      z-index: 1;
+      z-index: 3;
       opacity: 0;
-      transform: translateY(-6px);
+      transform: translateY(6px);
       transition: opacity 0.3s ease 0.18s, transform 0.3s ease 0.18s;
       pointer-events: none;
-      color: #fff;
     }
 
     .tab:hover .tab-content {
@@ -123,40 +136,36 @@
       transform: translateY(0);
     }
 
-    /* ── 공통 메타 ── */
+    /* ── Lunch 콘텐츠: 날짜 + 메뉴가 하나의 텍스트 블록 ── */
+    .menu-title { display: none; }
+
+    .tab--lunch .tab-content .meta,
+    .tab--lunch .tab-content .menu-list li,
+    .tab--lunch .tab-content .no-menu {
+      font-size: clamp(1.6rem, 3vw, 2.8rem);
+      font-weight: 300;
+      line-height: 1.4;
+      letter-spacing: -0.01em;
+      color: rgba(255,255,255,0.3);
+      text-transform: none;
+      margin: 0;
+      padding: 0;
+      border: none;
+    }
+
+    .tab--lunch .tab-content .meta {
+      margin-bottom: 0;
+    }
+
+    .menu-list { list-style: none; }
+
+    /* ── 공통 메타 (Timer용) ── */
     .meta {
       font-size: 0.68rem;
       letter-spacing: 0.18em;
       text-transform: uppercase;
       margin-bottom: 1.8rem;
       color: rgba(255,255,255,0.55);
-    }
-
-    /* ── 메뉴 ── */
-    .menu-title {
-      font-size: 0.78rem;
-      font-weight: 500;
-      letter-spacing: 0.06em;
-      color: rgba(255,255,255,0.65);
-      margin-bottom: 0.9rem;
-    }
-
-    .menu-list { list-style: none; }
-
-    .menu-list li {
-      font-size: clamp(1rem, 1.8vw, 1.4rem);
-      font-weight: 300;
-      color: #fff;
-      padding: 0.38rem 0;
-      border-bottom: 1px solid rgba(255,255,255,0.18);
-    }
-
-    .menu-list li:last-child { border-bottom: none; }
-
-    .no-menu {
-      font-size: 1rem;
-      font-weight: 300;
-      color: rgba(255,255,255,0.45);
     }
 
     /* ── 타이머 ── */
@@ -219,6 +228,7 @@
 
   <!-- Timer 탭 -->
   <div class="tab tab--timer">
+    <div class="timer-overlay" id="timerOverlay"></div>
     <div class="label">Timer</div>
     <div class="tab-content">
       <div class="meta">Lunch 11:50 — 13:30</div>
@@ -237,6 +247,9 @@
 </div>
 
 <script>
+  // ── 테스트용 날짜 고정 (null로 바꾸면 실제 오늘 날짜 기준으로 작동) ──
+  const TEST_DATE = '2026-04-30';
+
   // ── Menu ───────────────────────────────────────────
   const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const DAY_KO   = ['일', '월', '화', '수', '목', '금', '토'];
@@ -247,11 +260,19 @@
     return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
   }
 
+  // 메뉴 표시용 날짜: TEST_DATE가 있으면 고정, 없으면 실제 KST 날짜
+  function getDisplayDate() {
+    if (TEST_DATE) {
+      const [y, m, d] = TEST_DATE.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    return nowKST();
+  }
+
   function renderMenu(items) {
-    const now = nowKST();
+    const now = getDisplayDate();
     const dow = now.getDay();
-    const dateStr =
-      `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())} ${DAY_KO[dow]}`;
+    const dateStr = `${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
     document.getElementById('menuDate').textContent = dateStr;
 
     const list = document.getElementById('menuList');
@@ -273,7 +294,7 @@
       const res = await fetch('./menu.json');
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
-      const dow = nowKST().getDay();
+      const dow = getDisplayDate().getDay();
       const key = DAY_KEYS[dow];
       renderMenu(data.menus?.[key]);
     } catch {
@@ -300,6 +321,7 @@
     const displayEl = document.getElementById('timerDisplay');
     const subEl     = document.getElementById('timerSub');
     const barEl     = document.getElementById('barFill');
+    const overlayEl = document.getElementById('timerOverlay');
 
     displayEl.classList.remove('closed');
 
@@ -309,18 +331,22 @@
       displayEl.textContent = fmtMMSS(diff);
       subEl.textContent     = '남았습니다';
       barEl.style.width     = '0%';
+      overlayEl.style.width = '100%';
 
     } else if (cur <= CLOSE) {
       const diff = CLOSE - cur;
       const pct  = ((SPAN - diff) / SPAN) * 100;
+      const remaining = 100 - pct;
       statusEl.textContent  = '마감까지';
       displayEl.textContent = fmtMMSS(diff);
       subEl.textContent     = '남았습니다';
       barEl.style.width     = pct + '%';
+      overlayEl.style.width = remaining + '%';
 
     } else {
       displayEl.classList.add('closed');
       statusEl.textContent  = '';
+      overlayEl.style.width = '0%';
       displayEl.textContent = '오늘 운영 종료';
       subEl.textContent     = '내일 11:50에 다시 만나요';
       barEl.style.width     = '100%';
