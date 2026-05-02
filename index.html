@@ -169,31 +169,16 @@
     }
 
     /* ── 타이머 ── */
-    .timer-status {
-      font-size: 0.72rem;
-      letter-spacing: 0.08em;
-      color: rgba(255,255,255,0.5);
-      margin-bottom: 0.3rem;
-    }
+    .timer-status,
+    .timer-sub,
+    .bar-wrap { display: none; }
 
     .timer-display {
-      font-size: clamp(2.5rem, 7vw, 5rem);
-      font-weight: 200;
-      letter-spacing: -0.04em;
-      line-height: 1;
-      color: #fff;
-    }
-
-    .timer-display.closed {
-      font-size: clamp(1.2rem, 3vw, 2rem);
-      opacity: 0.45;
-    }
-
-    .timer-sub {
-      margin-top: 0.4rem;
-      font-size: 0.72rem;
-      letter-spacing: 0.1em;
-      color: rgba(255,255,255,0.38);
+      font-size: clamp(3.5rem, 11vw, 9rem);
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      line-height: 0.9;
+      color: rgba(255,255,255,0.3);
     }
 
     .bar-wrap {
@@ -317,48 +302,36 @@
   const CLOSE = 13 * 3600 + 30 * 60;
   const SPAN  = CLOSE - OPEN;
 
-  function fmtMMSS(sec) {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}분 ${pad(s)}초`;
+  // diffSec → "1H 20M" 또는 "25M" 형식
+  function fmtMin(diffSec) {
+    const totalMin = Math.floor(diffSec / 60);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return h > 0 ? `${h}H ${m}M` : `${m}M`;
   }
 
   function updateTimer() {
-    const cur = getCurrentSec();
-
-    const statusEl  = document.getElementById('timerStatus');
+    const cur       = getCurrentSec();
     const displayEl = document.getElementById('timerDisplay');
-    const subEl     = document.getElementById('timerSub');
-    const barEl     = document.getElementById('barFill');
     const overlayEl = document.getElementById('timerOverlay');
 
-    displayEl.classList.remove('closed');
-
     if (cur < OPEN) {
+      // 점심 시작 전: 음수 표시
       const diff = OPEN - cur;
-      statusEl.textContent  = '점심까지';
-      displayEl.textContent = fmtMMSS(diff);
-      subEl.textContent     = '남았습니다';
-      barEl.style.width     = '0%';
+      displayEl.textContent = `-${fmtMin(diff)}`;
       overlayEl.style.width = '100%';
 
     } else if (cur <= CLOSE) {
-      const diff = CLOSE - cur;
-      const pct  = ((SPAN - diff) / SPAN) * 100;
-      const remaining = 100 - pct;
-      statusEl.textContent  = '마감까지';
-      displayEl.textContent = fmtMMSS(diff);
-      subEl.textContent     = '남았습니다';
-      barEl.style.width     = pct + '%';
+      // 점심 중: 남은 시간 + LEFT
+      const diff      = CLOSE - cur;
+      const remaining = (diff / SPAN) * 100;
+      displayEl.textContent = `${fmtMin(diff)} LEFT`;
       overlayEl.style.width = remaining + '%';
 
     } else {
-      displayEl.classList.add('closed');
-      statusEl.textContent  = '';
+      // 종료
+      displayEl.textContent = 'CLOSED';
       overlayEl.style.width = '0%';
-      displayEl.textContent = '오늘 운영 종료';
-      subEl.textContent     = '내일 11:50에 다시 만나요';
-      barEl.style.width     = '100%';
     }
   }
 
