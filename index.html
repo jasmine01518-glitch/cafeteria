@@ -231,6 +231,25 @@
 
 </div>
 
+<!-- Share / Rate: 독립 fixed 레이어 -->
+<div style="
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  z-index: 100;
+  text-align: right;
+  line-height: 1.05;
+  font-family: 'Helvetica Neue', 'Apple SD Gothic Neo', Arial, sans-serif;
+  font-size: clamp(3.5rem, 11vw, 9rem);
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  color: rgba(255,255,255,0.3);
+  pointer-events: none;
+  user-select: none;
+">
+  Share<br>Rate
+</div>
+
 <script>
   // ── 테스트용 고정값 (null로 바꾸면 실제 날짜/시간으로 동작) ──
   const FORCE_DATE_KEY = '0430';   // 메뉴 키 및 날짜 표시
